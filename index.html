@@ -627,25 +627,27 @@
       }
     }
 
-    onAuthStateChanged(auth, user => {
-      document.getElementById('login-loading').classList.add('hidden');
-      if (user) {
-        DB_REF = doc(db, 'users', user.uid, 'memory', 'main');
-        updateUserUI(user);
-        document.getElementById('login-screen').classList.add('hidden');
-        document.getElementById('login-form').classList.add('hidden');
-        loadLocal();
-        render();
-        enableFirebaseListener();
-      } else {
-        updateUserUI(null);
-        document.getElementById('login-form').classList.remove('hidden');
-        document.getElementById('login-screen').classList.remove('hidden');
-        memos = []; categories = ['日常', '仕事', 'アイデア'];
-      }
+    // getRedirectResult を先に処理してから onAuthStateChanged を設定することで
+    // リダイレクト結果が確定する前に null で発火してログイン画面が表示される問題を防ぐ
+    getRedirectResult(auth).catch(e => console.error('redirect error:', e)).finally(() => {
+      onAuthStateChanged(auth, user => {
+        document.getElementById('login-loading').classList.add('hidden');
+        if (user) {
+          DB_REF = doc(db, 'users', user.uid, 'memory', 'main');
+          updateUserUI(user);
+          document.getElementById('login-screen').classList.add('hidden');
+          document.getElementById('login-form').classList.add('hidden');
+          loadLocal();
+          render();
+          enableFirebaseListener();
+        } else {
+          updateUserUI(null);
+          document.getElementById('login-form').classList.remove('hidden');
+          document.getElementById('login-screen').classList.remove('hidden');
+          memos = []; categories = ['日常', '仕事', 'アイデア'];
+        }
+      });
     });
-
-    getRedirectResult(auth).catch(e => console.error('redirect error:', e));
 
     // ─── Expose globals ───────────────────────────────────────
     Object.assign(window, {
