@@ -81,6 +81,9 @@
         </div>
       </div>
 
+      <!-- タグフィルター -->
+      <div id="tag-filter" class="hidden px-4 py-2 border-b border-gray-100 flex flex-wrap gap-1.5" style="scrollbar-width:none"></div>
+
       <!-- メモカード一覧 -->
       <div id="memo-grid" class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 
@@ -134,6 +137,15 @@
               </svg>
             </button>
           </div>
+        </div>
+
+        <!-- タグ -->
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1.5">タグ</label>
+          <div id="modal-tags-list" class="flex flex-wrap gap-1.5 mb-2"></div>
+          <input id="modal-tag-input" type="text" placeholder="タグを入力してEnterで追加"
+            class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent placeholder-gray-300"
+            onkeydown="handleTagInput(event)"/>
         </div>
 
         <!-- 本文 -->
@@ -244,6 +256,8 @@
     let memos      = [];
     let categories = ['日常', '仕事', 'アイデア'];
     let activeTab  = 'すべて';
+    let activeTag  = null;
+    let modalTags  = [];
     let editingMemoId = null;
     let editingCatIdx = -1;
 
@@ -318,6 +332,7 @@
         inputTitle.value = memo.title;
         document.getElementById('modal-category').value = memo.category;
         inputBody.value = memo.body;
+        modalTags = [...(memo.tags || [])];
         datesEl.classList.remove('hidden');
         document.getElementById('modal-created-at').textContent = formatDate(memo.createdAt);
         document.getElementById('modal-updated-at').textContent = formatDate(memo.updatedAt || memo.createdAt);
@@ -328,8 +343,10 @@
           document.getElementById('modal-category').value = activeTab;
         }
         inputBody.value = '';
+        modalTags = [];
         datesEl.classList.add('hidden');
       }
+      renderModalTags();
 
       document.getElementById('memo-modal').classList.remove('hidden');
       setTimeout(() => inputTitle.focus(), 50);
@@ -338,6 +355,7 @@
     function closeMemoModal() {
       document.getElementById('memo-modal').classList.add('hidden');
       editingMemoId = null;
+      modalTags = [];
     }
 
     function saveMemo() {
@@ -359,10 +377,11 @@
           memo.title     = title;
           memo.category  = category;
           memo.body      = body;
+          memo.tags      = [...modalTags];
           memo.updatedAt = todayStr();
         }
       } else {
-        memos.push({ id: Date.now().toString(), title, category, body, createdAt: todayStr(), updatedAt: todayStr() });
+        memos.push({ id: Date.now().toString(), title, category, tags: [...modalTags], body, createdAt: todayStr(), updatedAt: todayStr() });
       }
 
       saveData();
@@ -393,7 +412,7 @@
     }
 
     // ─── Tabs ─────────────────────────────────────────────────
-    function setTab(tab) { activeTab = tab; renderTabs(); renderMemoGrid(); }
+    function setTab(tab) { activeTab = tab; activeTag = null; renderTabs(); renderTagFilter(); renderMemoGrid(); }
 
     function renderTabs() {
       const container = document.getElementById('tab-list');
@@ -529,9 +548,67 @@
       if (categories.includes(prev)) sel.value = prev;
     }
 
+    // ─── Tag filter ──────────────────────────────────────────
+    function renderTagFilter() {
+      const container = document.getElementById('tag-filter');
+      const base = activeTab === 'すべて' ? memos : memos.filter(m => m.category === activeTab);
+      const allTags = [...new Set(base.flatMap(m => m.tags || []))].sort();
+      if (!allTags.length) {
+        container.classList.add('hidden');
+        if (!allTags.includes(activeTag)) activeTag = null;
+        return;
+      }
+      container.classList.remove('hidden');
+      container.innerHTML = allTags.map(tag => {
+        const on = tag === activeTag;
+        return `<button onclick="setTagFilter('${esc(tag)}')"
+          class="px-2.5 py-1 rounded-full text-xs border transition-colors whitespace-nowrap
+            ${on ? 'bg-slate-700 text-white border-slate-700' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}">
+          #${esc(tag)}
+        </button>`;
+      }).join('');
+    }
+
+    function setTagFilter(tag) {
+      activeTag = activeTag === tag ? null : tag;
+      renderTagFilter();
+      renderMemoGrid();
+    }
+
+    // ─── Modal tags ───────────────────────────────────────────
+    function renderModalTags() {
+      const list = document.getElementById('modal-tags-list');
+      if (!list) return;
+      list.innerHTML = modalTags.map((tag, i) =>
+        `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-slate-50 text-slate-600 border border-slate-200">
+          #${esc(tag)}
+          <button type="button" onclick="removeModalTag(${i})"
+            class="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors">✕</button>
+        </span>`
+      ).join('');
+    }
+
+    function handleTagInput(e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const inp = e.target;
+      const val = inp.value.trim().replace(/[,#]/g, '');
+      if (!val || modalTags.includes(val)) { inp.value = ''; return; }
+      modalTags.push(val);
+      renderModalTags();
+      inp.value = '';
+    }
+
+    function removeModalTag(i) {
+      modalTags.splice(i, 1);
+      renderModalTags();
+    }
+
     // ─── Memo grid ────────────────────────────────────────────
     function getFilteredMemos() {
-      return activeTab === 'すべて' ? memos : memos.filter(m => m.category === activeTab);
+      let result = activeTab === 'すべて' ? memos : memos.filter(m => m.category === activeTab);
+      if (activeTag) result = result.filter(m => (m.tags || []).includes(activeTag));
+      return result;
     }
 
     function renderMemoGrid() {
@@ -556,9 +633,10 @@
   <div class="px-4 pt-4 pb-2 pr-28">
     <p class="font-semibold text-gray-800 text-sm leading-snug">${esc(memo.title)}</p>
   </div>
-  <div class="px-4 pb-3 flex-1">
+  <div class="px-4 pb-2 flex-1">
     <p class="text-xs text-gray-500 leading-relaxed" style="display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden">${preview}</p>
   </div>
+  ${(memo.tags && memo.tags.length) ? `<div class="px-4 pb-2 flex flex-wrap gap-1">${memo.tags.map(t => `<span class="px-2 py-0.5 rounded-full text-xs bg-slate-50 text-slate-500 border border-slate-200">#${esc(t)}</span>`).join('')}</div>` : ''}
   <div class="px-3 pb-3 flex items-center justify-between border-t border-gray-50 pt-2">
     <div class="flex gap-0.5">
       <button onclick="moveMemo('${esc(memo.id)}',-1)" ${isFirst ? 'disabled' : ''} title="上へ"
@@ -585,7 +663,7 @@
       }).join('');
     }
 
-    function render() { renderTabs(); renderMemoGrid(); renderModalCategorySelect(); }
+    function render() { renderTabs(); renderTagFilter(); renderMemoGrid(); renderModalCategorySelect(); }
 
     function esc(s) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -647,6 +725,7 @@
       addCategory, startEditCat, cancelEditCat, saveEditCat, deleteCat, moveCat,
       openMemoModal, closeMemoModal, saveMemo,
       deleteMemo, moveMemo,
+      setTagFilter, handleTagInput, removeModalTag,
       signInWithGoogle, signOutUser,
     });
   </script>
