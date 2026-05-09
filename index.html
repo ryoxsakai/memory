@@ -230,6 +230,51 @@
     </div>
   </div>
 
+  <!-- ── メモ表示モーダル ─────────────────────────────────────────────── -->
+  <div id="view-modal"
+    class="fixed inset-0 flex items-center justify-center z-50 hidden"
+    style="background:rgba(0,0,0,0.2);backdrop-filter:blur(4px)"
+    onclick="if(event.target===this) closeViewModal()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 flex flex-col" style="max-height:85vh">
+
+      <div class="flex items-start justify-between px-6 py-4 border-b border-gray-100">
+        <div class="flex-1 pr-4">
+          <p id="view-category" class="text-xs text-slate-400 mb-1"></p>
+          <h3 id="view-title" class="font-semibold text-gray-800 leading-snug"></h3>
+        </div>
+        <button onclick="closeViewModal()" class="icon-btn text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex-shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="px-6 py-4 overflow-y-auto flex-1">
+        <p id="view-body" class="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap select-text"></p>
+      </div>
+
+      <div id="view-tags" class="hidden px-6 pb-3 flex flex-wrap gap-1.5"></div>
+
+      <div class="px-6 py-3 border-t border-gray-100 flex items-center justify-between">
+        <p id="view-dates" class="text-xs text-gray-300"></p>
+        <div class="flex gap-1">
+          <button onclick="viewCopyMemo()" title="コピー"
+            class="icon-btn text-gray-300 hover:text-slate-500 hover:bg-slate-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          </button>
+          <button onclick="viewEditMemo()" title="編集"
+            class="icon-btn text-gray-300 hover:text-slate-500 hover:bg-slate-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+          </button>
+          <button onclick="viewDeleteMemo()" title="削除"
+            class="icon-btn text-gray-300 hover:text-red-400 hover:bg-red-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── トースト通知 ──────────────────────────────────────────── -->
   <div id="toast"
     class="fixed left-1/2 z-50 pointer-events-none bg-gray-800 text-white text-sm px-4 py-2.5 rounded-xl shadow-lg whitespace-nowrap max-w-xs truncate"
@@ -263,6 +308,7 @@
     let modalTags  = [];
     let editingMemoId = null;
     let editingCatIdx = -1;
+    let viewingMemoId = null;
 
     const MEMOS_KEY = 'memory-memos';
     const CATS_KEY  = 'memory-categories';
@@ -634,7 +680,7 @@
           ? esc(memo.body).replace(/\n/g, '<br>')
           : '<span class="text-gray-300 italic">内容なし</span>';
 
-        return `<div class="memo-card relative bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col cursor-pointer" style="min-height:150px" onclick="copyMemo('${esc(memo.id)}', event)">
+        return `<div class="memo-card relative bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col cursor-pointer" style="min-height:150px" onclick="openMemoView('${esc(memo.id)}', event)">
   <span class="absolute top-3 right-3 px-2 py-0.5 rounded-full text-xs bg-slate-50 text-slate-500 border border-slate-100 max-w-28 truncate">${esc(memo.category)}</span>
   <div class="px-4 pt-4 pb-2 pr-28">
     <p class="font-semibold text-gray-800 text-sm leading-snug">${esc(memo.title)}</p>
@@ -689,13 +735,66 @@
       }, 2000);
     }
 
+    function openMemoView(id, e) {
+      if (e && e.target.closest('button')) return;
+      const memo = memos.find(m => m.id === id);
+      if (!memo) return;
+      viewingMemoId = id;
+      document.getElementById('view-title').textContent = memo.title;
+      document.getElementById('view-category').textContent = memo.category;
+      document.getElementById('view-body').textContent = memo.body || '';
+      const tagsEl = document.getElementById('view-tags');
+      if (memo.tags && memo.tags.length) {
+        tagsEl.classList.remove('hidden');
+        tagsEl.innerHTML = memo.tags.map(t => `<span class="px-2 py-0.5 rounded-full text-xs bg-slate-50 text-slate-500 border border-slate-200">#${esc(t)}</span>`).join('');
+      } else {
+        tagsEl.classList.add('hidden');
+      }
+      const parts = [];
+      if (memo.createdAt) parts.push(`作成: ${formatDate(memo.createdAt)}`);
+      if (memo.updatedAt && memo.updatedAt !== memo.createdAt) parts.push(`更新: ${formatDate(memo.updatedAt)}`);
+      document.getElementById('view-dates').textContent = parts.join('　');
+      document.getElementById('view-modal').classList.remove('hidden');
+    }
+
+    function closeViewModal() {
+      document.getElementById('view-modal').classList.add('hidden');
+      viewingMemoId = null;
+    }
+
+    function viewEditMemo() {
+      const id = viewingMemoId;
+      closeViewModal();
+      openMemoModal(id);
+    }
+
+    function viewDeleteMemo() {
+      const memo = memos.find(m => m.id === viewingMemoId);
+      if (!memo || !confirm(`「${memo.title}」を削除しますか？`)) return;
+      const id = viewingMemoId;
+      closeViewModal();
+      memos = memos.filter(m => m.id !== id);
+      saveData();
+      renderMemoGrid();
+    }
+
+    async function viewCopyMemo() {
+      const memo = memos.find(m => m.id === viewingMemoId);
+      if (!memo) return;
+      try {
+        await navigator.clipboard.writeText(memo.body || '');
+        showToast(`「${memo.title}」をコピーしました`);
+      } catch(err) {
+        console.error('コピーに失敗しました', err);
+      }
+    }
+
     async function copyMemo(id, e) {
       if (e && e.target.closest('button')) return;
       const memo = memos.find(m => m.id === id);
       if (!memo) return;
-      const text = memo.body || '';
       try {
-        await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(memo.body || '');
         showToast(`「${memo.title}」をコピーしました`);
       } catch(err) {
         console.error('コピーに失敗しました', err);
@@ -762,6 +861,7 @@
       addCategory, startEditCat, cancelEditCat, saveEditCat, deleteCat, moveCat,
       openMemoModal, closeMemoModal, saveMemo,
       deleteMemo, moveMemo, copyMemo,
+      openMemoView, closeViewModal, viewEditMemo, viewDeleteMemo, viewCopyMemo,
       setTagFilter, handleTagInput, removeModalTag,
       signInWithGoogle, signOutUser,
     });
