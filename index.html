@@ -266,6 +266,7 @@
 
     const MEMOS_KEY = 'memory-memos';
     const CATS_KEY  = 'memory-categories';
+    const TAB_KEY   = 'memory-active-tab';
 
     // ─── Persistence ─────────────────────────────────────────
     function loadLocal() {
@@ -274,6 +275,8 @@
         const sc = localStorage.getItem(CATS_KEY);
         if (sm) memos      = JSON.parse(sm);
         if (sc) categories = JSON.parse(sc);
+        const st = localStorage.getItem(TAB_KEY);
+        if (st) activeTab = st;
       } catch(e) {}
     }
 
@@ -415,7 +418,7 @@
     }
 
     // ─── Tabs ─────────────────────────────────────────────────
-    function setTab(tab) { activeTab = tab; activeTag = null; renderTabs(); renderTagFilter(); renderMemoGrid(); }
+    function setTab(tab) { activeTab = tab; activeTag = null; localStorage.setItem(TAB_KEY, tab); renderTabs(); renderTagFilter(); renderMemoGrid(); }
 
     function renderTabs() {
       const container = document.getElementById('tab-list');
