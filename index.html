@@ -155,9 +155,22 @@
 
         <!-- 補足 -->
         <div>
-          <label class="block text-xs font-medium text-gray-500 mb-1.5">補足</label>
-          <input id="modal-note" type="text" placeholder="URLや一言メモを入力..."
-            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent placeholder-gray-300"/>
+          <button id="note-toggle-btn" type="button" onclick="showNoteField()"
+            class="flex items-center gap-1 text-xs text-gray-400 hover:text-slate-500 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+            補足を追加
+          </button>
+          <div id="note-field" class="hidden">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-medium text-gray-500">補足</label>
+              <button type="button" onclick="hideNoteField()"
+                class="text-xs text-gray-300 hover:text-gray-500 transition-colors">✕ 削除</button>
+            </div>
+            <input id="modal-note" type="text" placeholder="URLや一言メモを入力..."
+              class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent placeholder-gray-300"/>
+          </div>
         </div>
 
         <!-- 日付情報（目立たない） -->
@@ -394,7 +407,15 @@
         inputTitle.value = memo.title;
         document.getElementById('modal-category').value = memo.category;
         inputBody.value = memo.body;
-        inputNote.value = memo.note || '';
+        if (memo.note) {
+          inputNote.value = memo.note;
+          document.getElementById('note-toggle-btn').classList.add('hidden');
+          document.getElementById('note-field').classList.remove('hidden');
+        } else {
+          inputNote.value = '';
+          document.getElementById('note-toggle-btn').classList.remove('hidden');
+          document.getElementById('note-field').classList.add('hidden');
+        }
         modalTags = [...(memo.tags || [])];
         datesEl.classList.remove('hidden');
         document.getElementById('modal-created-at').textContent = formatDate(memo.createdAt);
@@ -407,6 +428,8 @@
         }
         inputBody.value = '';
         inputNote.value = '';
+        document.getElementById('note-toggle-btn').classList.remove('hidden');
+        document.getElementById('note-field').classList.add('hidden');
         modalTags = [];
         datesEl.classList.add('hidden');
       }
@@ -420,6 +443,18 @@
       document.getElementById('memo-modal').classList.add('hidden');
       editingMemoId = null;
       modalTags = [];
+    }
+
+    function showNoteField() {
+      document.getElementById('note-toggle-btn').classList.add('hidden');
+      document.getElementById('note-field').classList.remove('hidden');
+      document.getElementById('modal-note').focus();
+    }
+
+    function hideNoteField() {
+      document.getElementById('modal-note').value = '';
+      document.getElementById('note-field').classList.add('hidden');
+      document.getElementById('note-toggle-btn').classList.remove('hidden');
     }
 
     function saveMemo() {
@@ -896,7 +931,7 @@
       setTab,
       openCategoryModal, closeCategoryModal,
       addCategory, startEditCat, cancelEditCat, saveEditCat, deleteCat, moveCat,
-      openMemoModal, closeMemoModal, saveMemo,
+      openMemoModal, closeMemoModal, saveMemo, showNoteField, hideNoteField,
       deleteMemo, moveMemo, copyMemo,
       openMemoView, closeViewModal, viewEditMemo, viewDeleteMemo, viewCopyMemo,
       setTagFilter, handleTagInput, removeModalTag,
