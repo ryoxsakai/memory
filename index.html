@@ -153,6 +153,13 @@
             style="min-height:200px"></textarea>
         </div>
 
+        <!-- 補足 -->
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1.5">補足</label>
+          <input id="modal-note" type="text" placeholder="URLや一言メモを入力..."
+            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent placeholder-gray-300"/>
+        </div>
+
         <!-- 日付情報（目立たない） -->
         <div id="modal-dates" class="hidden flex gap-4 text-xs text-gray-300">
           <span>作成日: <span id="modal-created-at"></span></span>
@@ -250,6 +257,9 @@
 
       <div class="px-6 py-4 overflow-y-auto flex-1">
         <p id="view-body" class="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap select-text"></p>
+        <div id="view-note-wrap" class="hidden mt-3 pt-3 border-t border-gray-100">
+          <p id="view-note" class="text-xs text-gray-400 leading-relaxed select-text break-all"></p>
+        </div>
       </div>
 
       <div id="view-tags" class="hidden px-6 pb-3 flex flex-wrap gap-1.5"></div>
@@ -372,6 +382,7 @@
       editingMemoId = id;
       const inputTitle = document.getElementById('modal-title');
       const inputBody  = document.getElementById('modal-body');
+      const inputNote  = document.getElementById('modal-note');
       const datesEl    = document.getElementById('modal-dates');
 
       renderModalCategorySelect();
@@ -383,6 +394,7 @@
         inputTitle.value = memo.title;
         document.getElementById('modal-category').value = memo.category;
         inputBody.value = memo.body;
+        inputNote.value = memo.note || '';
         modalTags = [...(memo.tags || [])];
         datesEl.classList.remove('hidden');
         document.getElementById('modal-created-at').textContent = formatDate(memo.createdAt);
@@ -394,6 +406,7 @@
           document.getElementById('modal-category').value = activeTab;
         }
         inputBody.value = '';
+        inputNote.value = '';
         modalTags = [];
         datesEl.classList.add('hidden');
       }
@@ -413,6 +426,7 @@
       const title    = document.getElementById('modal-title').value.trim();
       const category = document.getElementById('modal-category').value;
       const body     = document.getElementById('modal-body').value;
+      const note     = document.getElementById('modal-note').value.trim();
 
       if (!title) {
         const inp = document.getElementById('modal-title');
@@ -428,11 +442,12 @@
           memo.title     = title;
           memo.category  = category;
           memo.body      = body;
+          memo.note      = note;
           memo.tags      = [...modalTags];
           memo.updatedAt = todayStr();
         }
       } else {
-        memos.push({ id: Date.now().toString(), title, category, tags: [...modalTags], body, createdAt: todayStr(), updatedAt: todayStr() });
+        memos.push({ id: Date.now().toString(), title, category, tags: [...modalTags], body, note, createdAt: todayStr(), updatedAt: todayStr() });
       }
 
       saveData();
@@ -742,6 +757,14 @@
       document.getElementById('view-title').textContent = memo.title;
       document.getElementById('view-category').textContent = memo.category;
       document.getElementById('view-body').innerHTML = linkifyText(memo.body || '');
+      const noteWrap = document.getElementById('view-note-wrap');
+      const noteText = memo.note || '';
+      if (noteText) {
+        noteWrap.classList.remove('hidden');
+        document.getElementById('view-note').innerHTML = linkifyText(noteText);
+      } else {
+        noteWrap.classList.add('hidden');
+      }
       const tagsEl = document.getElementById('view-tags');
       if (memo.tags && memo.tags.length) {
         tagsEl.classList.remove('hidden');
