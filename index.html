@@ -155,22 +155,14 @@
 
         <!-- 補足 -->
         <div>
-          <button id="note-toggle-btn" type="button" onclick="showNoteField()"
+          <div id="notes-container" class="flex flex-col gap-2 mb-1"></div>
+          <button type="button" onclick="addModalNote()"
             class="flex items-center gap-1 text-xs text-gray-400 hover:text-slate-500 transition-colors">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
             </svg>
             補足を追加
           </button>
-          <div id="note-field" class="hidden">
-            <div class="flex items-center justify-between mb-1.5">
-              <label class="text-xs font-medium text-gray-500">補足</label>
-              <button type="button" onclick="hideNoteField()"
-                class="text-xs text-gray-300 hover:text-gray-500 transition-colors">✕ 削除</button>
-            </div>
-            <input id="modal-note" type="text" placeholder="URLや一言メモを入力..."
-              class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent placeholder-gray-300"/>
-          </div>
         </div>
 
         <!-- 日付情報（目立たない） -->
@@ -252,8 +244,7 @@
   <!-- ── メモ表示モーダル ─────────────────────────────────────────────── -->
   <div id="view-modal"
     class="fixed inset-0 flex items-center justify-center z-50 hidden"
-    style="background:rgba(0,0,0,0.2);backdrop-filter:blur(4px)"
-    onclick="if(event.target===this) closeViewModal()">
+    style="background:rgba(0,0,0,0.2);backdrop-filter:blur(4px)">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 flex flex-col" style="max-height:85vh">
 
       <div class="flex items-start justify-between px-6 py-4 border-b border-gray-100">
@@ -270,9 +261,7 @@
 
       <div class="px-6 py-4 overflow-y-auto flex-1">
         <p id="view-body" class="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap select-text"></p>
-        <div id="view-note-wrap" class="hidden mt-3 pt-3 border-t border-gray-100">
-          <p id="view-note" class="text-xs text-gray-400 leading-relaxed select-text break-all"></p>
-        </div>
+        <div id="view-notes-wrap" class="hidden mt-3 pt-3 border-t border-gray-100 flex flex-col gap-1.5"></div>
       </div>
 
       <div id="view-tags" class="hidden px-6 pb-3 flex flex-wrap gap-1.5"></div>
@@ -328,6 +317,7 @@
     let activeTab  = 'すべて';
     let activeTag  = null;
     let modalTags  = [];
+    let modalNotes = [];
     let editingMemoId = null;
     let editingCatIdx = -1;
     let viewingMemoId = null;
@@ -395,7 +385,6 @@
       editingMemoId = id;
       const inputTitle = document.getElementById('modal-title');
       const inputBody  = document.getElementById('modal-body');
-      const inputNote  = document.getElementById('modal-note');
       const datesEl    = document.getElementById('modal-dates');
 
       renderModalCategorySelect();
@@ -407,15 +396,7 @@
         inputTitle.value = memo.title;
         document.getElementById('modal-category').value = memo.category;
         inputBody.value = memo.body;
-        if (memo.note) {
-          inputNote.value = memo.note;
-          document.getElementById('note-toggle-btn').classList.add('hidden');
-          document.getElementById('note-field').classList.remove('hidden');
-        } else {
-          inputNote.value = '';
-          document.getElementById('note-toggle-btn').classList.remove('hidden');
-          document.getElementById('note-field').classList.add('hidden');
-        }
+        modalNotes = memo.notes ? [...memo.notes] : (memo.note ? [memo.note] : []);
         modalTags = [...(memo.tags || [])];
         datesEl.classList.remove('hidden');
         document.getElementById('modal-created-at').textContent = formatDate(memo.createdAt);
@@ -427,12 +408,11 @@
           document.getElementById('modal-category').value = activeTab;
         }
         inputBody.value = '';
-        inputNote.value = '';
-        document.getElementById('note-toggle-btn').classList.remove('hidden');
-        document.getElementById('note-field').classList.add('hidden');
+        modalNotes = [];
         modalTags = [];
         datesEl.classList.add('hidden');
       }
+      renderModalNotes();
       renderModalTags();
 
       document.getElementById('memo-modal').classList.remove('hidden');
@@ -443,25 +423,52 @@
       document.getElementById('memo-modal').classList.add('hidden');
       editingMemoId = null;
       modalTags = [];
+      modalNotes = [];
     }
 
-    function showNoteField() {
-      document.getElementById('note-toggle-btn').classList.add('hidden');
-      document.getElementById('note-field').classList.remove('hidden');
-      document.getElementById('modal-note').focus();
+    function renderModalNotes() {
+      const container = document.getElementById('notes-container');
+      if (!container) return;
+      container.innerHTML = modalNotes.map((note, i) =>
+        `<div class="flex items-center gap-2">
+          <span class="text-xs text-gray-400 whitespace-nowrap w-10 flex-shrink-0">補足${i + 1}</span>
+          <input type="text" id="modal-note-${i}" value="${esc(note)}" placeholder="URLや一言メモを入力..."
+            class="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent placeholder-gray-300"/>
+          <button type="button" onclick="removeModalNote(${i})"
+            class="flex-shrink-0 text-gray-300 hover:text-gray-500 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>`
+      ).join('');
     }
 
-    function hideNoteField() {
-      document.getElementById('modal-note').value = '';
-      document.getElementById('note-field').classList.add('hidden');
-      document.getElementById('note-toggle-btn').classList.remove('hidden');
+    function syncModalNotes() {
+      const noteInputs = document.querySelectorAll('[id^="modal-note-"]');
+      modalNotes = Array.from(noteInputs).map(inp => inp.value);
+    }
+
+    function addModalNote() {
+      syncModalNotes();
+      modalNotes.push('');
+      renderModalNotes();
+      const last = document.getElementById(`modal-note-${modalNotes.length - 1}`);
+      if (last) last.focus();
+    }
+
+    function removeModalNote(i) {
+      syncModalNotes();
+      modalNotes.splice(i, 1);
+      renderModalNotes();
     }
 
     function saveMemo() {
       const title    = document.getElementById('modal-title').value.trim();
       const category = document.getElementById('modal-category').value;
       const body     = document.getElementById('modal-body').value;
-      const note     = document.getElementById('modal-note').value.trim();
+      const noteInputs = document.querySelectorAll('[id^="modal-note-"]');
+      const notes    = Array.from(noteInputs).map(inp => inp.value.trim()).filter(Boolean);
 
       if (!title) {
         const inp = document.getElementById('modal-title');
@@ -477,12 +484,12 @@
           memo.title     = title;
           memo.category  = category;
           memo.body      = body;
-          memo.note      = note;
+          memo.notes     = notes;
           memo.tags      = [...modalTags];
           memo.updatedAt = todayStr();
         }
       } else {
-        memos.push({ id: Date.now().toString(), title, category, tags: [...modalTags], body, note, createdAt: todayStr(), updatedAt: todayStr() });
+        memos.push({ id: Date.now().toString(), title, category, tags: [...modalTags], body, notes, createdAt: todayStr(), updatedAt: todayStr() });
       }
 
       saveData();
@@ -792,13 +799,15 @@
       document.getElementById('view-title').textContent = memo.title;
       document.getElementById('view-category').textContent = memo.category;
       document.getElementById('view-body').innerHTML = linkifyText(memo.body || '');
-      const noteWrap = document.getElementById('view-note-wrap');
-      const noteText = memo.note || '';
-      if (noteText) {
-        noteWrap.classList.remove('hidden');
-        document.getElementById('view-note').innerHTML = linkifyText(noteText);
+      const notesWrap = document.getElementById('view-notes-wrap');
+      const notes = memo.notes || (memo.note ? [memo.note] : []);
+      if (notes.length) {
+        notesWrap.classList.remove('hidden');
+        notesWrap.innerHTML = notes.map(n =>
+          `<p class="text-xs text-gray-400 leading-relaxed select-text break-all">${linkifyText(n)}</p>`
+        ).join('');
       } else {
-        noteWrap.classList.add('hidden');
+        notesWrap.classList.add('hidden');
       }
       const tagsEl = document.getElementById('view-tags');
       if (memo.tags && memo.tags.length) {
@@ -931,7 +940,7 @@
       setTab,
       openCategoryModal, closeCategoryModal,
       addCategory, startEditCat, cancelEditCat, saveEditCat, deleteCat, moveCat,
-      openMemoModal, closeMemoModal, saveMemo, showNoteField, hideNoteField,
+      openMemoModal, closeMemoModal, saveMemo, addModalNote, removeModalNote,
       deleteMemo, moveMemo, copyMemo,
       openMemoView, closeViewModal, viewEditMemo, viewDeleteMemo, viewCopyMemo,
       setTagFilter, handleTagInput, removeModalTag,
